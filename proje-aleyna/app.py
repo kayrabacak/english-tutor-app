@@ -4,20 +4,6 @@ from openai import OpenAI
 import google.generativeai as genai
 import tempfile
 
-# --- AJAN KOD BAŞLANGIÇ ---
-import streamlit as st
-import os
-
-try:
-    key = st.secrets["OPENAI_API_KEY"]
-    st.warning(f"🔑 Anahtar Durumu: Anahtar bulundu! İlk 5 harfi: {key[:5]}... Son 3 harfi: ...{key[-3:]}")
-    if key.startswith("sk-"):
-        st.success("✅ Format doğru görünüyor (sk- ile başlıyor).")
-    else:
-        st.error("🚨 HATA: Anahtar 'sk-' ile başlamıyor! Kopyalarken hata olmuş olabilir.")
-except Exception as e:
-    st.error(f"🚨 Anahtar Okunamadı! Hata: {e}")
-# --- AJAN KOD BİTİŞ ---
 
 # ==========================================
 # 1. PAGE CONFIG (EN BAŞTA OLMALI)
@@ -68,7 +54,7 @@ generation_config = {
 }
 
 system_instruction = """
-You are a friendly, patient, and encouraging English tutor named 'Aleyna'. 
+You are a friendly, patient, and encouraging English tutor named 'Rody'. 
 Your goal is to help the user practice speaking English.
 - Correct grammar mistakes gently inside your response.
 - Keep the conversation flowing by asking follow-up questions.
@@ -183,4 +169,5 @@ if audio_value:
                 "content": ai_response_text, 
                 "audio": ai_audio_path
             })
+
 
