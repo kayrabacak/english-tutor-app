@@ -5,25 +5,34 @@ import google.generativeai as genai
 import tempfile
 
 # ==========================================
-# 1. CONFIGURATION & SETUP
+# 1. AYARLAR VE KURULUM
 # ==========================================
 
 st.set_page_config(
     page_title="AI Fluent | English Tutor",
-    page_icon="🇬🇧",
+    F="🇬🇧",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Load Secrets (Hardcoded for now as per user request, but best practice is st.secrets)
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+# --- CSS VE DOSYA YOLU AYARLARI (KRİTİK DÜZELTME) ---
+# Bu kısım, kodun çalıştığı klasörü otomatik bulur ve CSS yolunu ona göre hesaplar.
+current_dir = os.path.dirname(os.path.abspath(__file__))
+css_path = os.path.join(current_dir, "assets", "style.css")
 
-# Initialize Clients
+# API Anahtarlarını Al (Streamlit Cloud Secrets)
+try:
+    OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+except FileNotFoundError:
+    st.error("API anahtarları bulunamadı! Lütfen .streamlit/secrets.toml dosyasını kontrol edin veya Cloud ayarlarını yapın.")
+    st.stop()
+
+# İstemcileri Başlat
 client = OpenAI(api_key=OPENAI_API_KEY)
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# Gemini Model Config
+# Gemini Model Ayarı
 generation_config = {
     "temperature": 0.7,
     "top_p": 0.95,
@@ -41,25 +50,25 @@ Your goal is to help the user practice speaking English.
 """
 
 model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash",
+    model_name="gemini-2.5-flash", # En stabil model sürümü
     generation_config=generation_config,
     system_instruction=system_instruction,
 )
 
 # ==========================================
-# 2. HELPER FUNCTIONS
+# 2. YARDIMCI FONKSİYONLAR
 # ==========================================
 
-def load_local_css(file_name):
-    """Load local CSS file for custom styling."""
+def load_local_css(file_path):
+    """CSS dosyasını güvenli bir şekilde yükler."""
     try:
-        with open(file_name) as f:
+        with open(file_path, "r") as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
     except FileNotFoundError:
-        st.warning(f"CSS file {file_name} not found. Please ensure 'assets/style.css' exists.")
+        st.warning(f"⚠️ Uyarı: CSS dosyası bulunamadı ({file_path}). Varsayılan tema kullanılıyor.")
 
 def speech_to_text(audio_file_path):
-    """Convert audio to text using OpenAI Whisper."""
+    """Sesi yazıya çevirir (Whisper)."""
     with open(audio_file_path, "rb") as audio_file:
         transcript = client.audio.transcriptions.create(
             model="whisper-1", 
@@ -69,29 +78,30 @@ def speech_to_text(audio_file_path):
     return transcript.text
 
 def ask_gemini(chat_session, user_text):
-    """Get response from Google Gemini."""
+    """Gemini'den cevap alır."""
     response = chat_session.send_message(user_text)
     return response.text
 
 def text_to_speech(text):
-    """Convert text to speech using OpenAI TTS."""
+    """Yazıyı sese çevirir (TTS)."""
     response = client.audio.speech.create(
         model="tts-1",
         voice="alloy", 
         input=text
     )
+    # Streamlit Cloud'da dosya izinleri için güvenli yöntem
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
         response.stream_to_file(tmp_file.name)
         return tmp_file.name
 
 # ==========================================
-# 3. INITIALIZATION
+# 3. BAŞLATMA
 # ==========================================
 
-# Load CSS
-load_local_css("assets/style.css")
+# CSS Yükle (Hesaplanmış yol ile)
+load_local_css(css_path)
 
-# Initialize Session State
+# Oturum Durumlarını Başlat
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -99,12 +109,11 @@ if "chat_session" not in st.session_state:
     st.session_state.chat_session = model.start_chat(history=[])
 
 # ==========================================
-# 4. SIDEBAR UI
+# 4. YAN MENÜ (SIDEBAR)
 # ==========================================
 
 with st.sidebar:
     st.markdown("## ⚙️ Settings")
-    st.markdown("Control your learning session.")
     
     if st.button("🗑️ Clear Conversation", use_container_width=True):
         st.session_state.messages = []
@@ -122,28 +131,23 @@ with st.sidebar:
         """
     )
     st.markdown("---")
-    st.caption("Powered by Gemini 2.5 & OpenAI")
+    st.caption("Powered by Gemini 1.5 & OpenAI")
 
 # ==========================================
-# 5. MAIN CHAT UI
+# 5. ANA SOHBET EKRANI
 # ==========================================
 
-# Custom Header
-col1, col2 = st.columns([1, 8])
-with col1:
-    st.markdown("<h1>AI Fluent Partner</h1>", unsafe_allow_html=True)
-with col2:
-    st.markdown("<h1></h1>", unsafe_allow_html=True)
-    st.markdown("*Practice English naturally with your personalized AI tutor.*")
+st.markdown("<h1>AI Fluent Partner</h1>", unsafe_allow_html=True)
+st.markdown("*Practice English naturally with your personalized AI tutor.*")
 
 st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
-# Chat History Display
+# Sohbet Geçmişini Göster
 chat_container = st.container()
 
 with chat_container:
     if not st.session_state.messages:
-        # Empty state welcome message
+        # Boş durum mesajı
         st.markdown(
             """
             <div style='text-align: center; padding: 50px; opacity: 0.6;'>
@@ -161,49 +165,50 @@ with chat_container:
                 st.audio(message["audio"], format="audio/mp3")
 
 # ==========================================
-# 6. INPUT AREA (Fixed at bottom)
+# 6. GİRİŞ ALANI (EN ALTTA SABİT)
 # ==========================================
 
 st.markdown("---")
 
-# Audio Input
+# Ses Girişi (Audio Input)
 audio_value = st.audio_input("🎤 Tap to speak")
 
 if audio_value:
-    # 1. Process User Input
+    # 1. Kullanıcı Girişini İşle
     with st.chat_message("user"):
         with st.spinner("Processing speech..."):
-            # Save audio
+            # Sesi kaydet
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_audio:
                 tmp_audio.write(audio_value.read())
                 tmp_audio_path = tmp_audio.name
             
-            # Transcribe
+            # Yazıya çevir
             user_text = speech_to_text(tmp_audio_path)
             st.markdown(user_text)
             
-    # Add to session
+    # Listeye ekle
     st.session_state.messages.append({"role": "user", "content": user_text})
 
-    # 2. Process AI Response
+    # 2. AI Cevabını İşle
     with st.chat_message("assistant"):
         with st.spinner("Fluent is thinking..."):
-            # Get Gemini response
+            # Gemini'ye sor
             ai_response_text = ask_gemini(st.session_state.chat_session, user_text)
             
-            # Generate Audio
+            # Sese çevir
             ai_audio_path = text_to_speech(ai_response_text)
             
-            # Output
+            # Ekrana bas ve sesi çal
             st.markdown(ai_response_text)
             st.audio(ai_audio_path, format="audio/mp3", autoplay=True)
     
-    # Add to session
+    # Listeye ekle
     st.session_state.messages.append({
         "role": "assistant", 
         "content": ai_response_text, 
         "audio": ai_audio_path
     })
 
-    # Cleanup
-    os.remove(tmp_audio_path)
+    # Temizlik
+    if os.path.exists(tmp_audio_path):
+        os.remove(tmp_audio_path)
