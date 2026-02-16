@@ -1,0 +1,102 @@
+/* Global Font Import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+
+/* Apply Inter font globally */
+html,
+body,
+[class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Hide default hamburger menu and footer for cleaner look */
+#MainMenu {
+    visibility: hidden;
+}
+
+footer {
+    visibility: hidden;
+}
+
+/* Customize Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #1E293B;
+    /* Slate-800 */
+    border-right: 1px solid #334155;
+}
+
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: #F8FAFC;
+    /* Slate-50 */
+}
+
+/* Custom Primary Button Style */
+.stButton>button {
+    background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.stButton>button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+}
+
+/* Chat Message Styling Enhancements */
+[data-testid="stChatMessage"] {
+    background-color: transparent;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 0.5rem;
+    border: 1px solid transparent;
+    transition: background-color 0.3s ease;
+}
+
+[data-testid="stChatMessage"]:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* User Message Specifics (Avatar container usually) */
+[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+/* Customize Audio Player to blend in */
+audio {
+    width: 100%;
+    margin-top: 8px;
+    border-radius: 8px;
+}
+
+/* Make the Audio Input (Microphone) Button more prominent */
+[data-testid="stAudioInput"] {
+    background-color: #1E293B;
+    border: 2px solid #7C3AED;
+    /* Primary Purple Border */
+    border-radius: 16px;
+    padding: 10px;
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+    /* Purple Glow */
+    transition: all 0.3s ease;
+}
+
+[data-testid="stAudioInput"]:hover {
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.6);
+    border-color: #8B5CF6;
+    transform: translateY(-2px);
+}
+
+[data-testid="stAudioInput"] button {
+    background-color: #7C3AED !important;
+    color: white !important;
+    border-radius: 50% !important;
+    width: 60px !important;
+    height: 60px !important;
+}
