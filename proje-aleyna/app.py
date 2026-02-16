@@ -5,27 +5,39 @@ import google.generativeai as genai
 import tempfile
 
 # ==========================================
-# 1. AYARLAR VE KURULUM
+# 1. PAGE CONFIG (EN BAŞTA OLMALI)
 # ==========================================
-
+# Streamlit kuralı: Bu komut her şeyden (hatta if/else bloklarından) önce gelmeli.
 st.set_page_config(
-    page_title="AI Fluent | English Tutor",
-    F="🇬🇧",
+    page_title="AI Fluent Partner",
+    page_icon=":uk:",  # Emoji yerine shortcode kullanımı daha güvenlidir
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- CSS VE DOSYA YOLU AYARLARI (KRİTİK DÜZELTME) ---
-# Bu kısım, kodun çalıştığı klasörü otomatik bulur ve CSS yolunu ona göre hesaplar.
+# ==========================================
+# 2. SETUP & API KEYS
+# ==========================================
+
+# Dosya yollarını hatasız bulmak için "Current Directory" hesabı
 current_dir = os.path.dirname(os.path.abspath(__file__))
 css_path = os.path.join(current_dir, "assets", "style.css")
 
-# API Anahtarlarını Al (Streamlit Cloud Secrets)
-try:
+# CSS Yükleme Fonksiyonu
+def load_css(file_path):
+    try:
+        with open(file_path, "r") as f:
+            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    except FileNotFoundError:
+        # Hata olursa uygulama çökmesin, sadece uyarı versin
+        st.warning(f"⚠️ CSS file not found at: {file_path}")
+
+# API Anahtarlarını Al (Secrets Kontrolü)
+if "OPENAI_API_KEY" in st.secrets and "GOOGLE_API_KEY" in st.secrets:
     OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-except FileNotFoundError:
-    st.error("API anahtarları bulunamadı! Lütfen .streamlit/secrets.toml dosyasını kontrol edin veya Cloud ayarlarını yapın.")
+else:
+    st.error("🚨 API Anahtarları bulunamadı! Lütfen Streamlit Cloud ayarlarından 'Secrets' kısmını kontrol et.")
     st.stop()
 
 # İstemcileri Başlat
@@ -46,29 +58,21 @@ Your goal is to help the user practice speaking English.
 - Correct grammar mistakes gently inside your response.
 - Keep the conversation flowing by asking follow-up questions.
 - Speak naturally, like a human friend, not a robot.
-- Keep responses concise (3-5 sentences max) so the user can speak more.
+- Keep responses concise (3-5 sentences max).
 """
 
 model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash", # En stabil model sürümü
+    model_name="gemini-2.5-flash",
     generation_config=generation_config,
     system_instruction=system_instruction,
 )
 
 # ==========================================
-# 2. YARDIMCI FONKSİYONLAR
+# 3. HELPER FUNCTIONS
 # ==========================================
 
-def load_local_css(file_path):
-    """CSS dosyasını güvenli bir şekilde yükler."""
-    try:
-        with open(file_path, "r") as f:
-            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.warning(f"⚠️ Uyarı: CSS dosyası bulunamadı ({file_path}). Varsayılan tema kullanılıyor.")
-
 def speech_to_text(audio_file_path):
-    """Sesi yazıya çevirir (Whisper)."""
+    """Convert audio to text using OpenAI Whisper."""
     with open(audio_file_path, "rb") as audio_file:
         transcript = client.audio.transcriptions.create(
             model="whisper-1", 
@@ -78,85 +82,54 @@ def speech_to_text(audio_file_path):
     return transcript.text
 
 def ask_gemini(chat_session, user_text):
-    """Gemini'den cevap alır."""
+    """Get response from Google Gemini."""
     response = chat_session.send_message(user_text)
     return response.text
 
 def text_to_speech(text):
-    """Yazıyı sese çevirir (TTS)."""
+    """Convert text to speech using OpenAI TTS."""
     response = client.audio.speech.create(
         model="tts-1",
         voice="alloy", 
         input=text
     )
-    # Streamlit Cloud'da dosya izinleri için güvenli yöntem
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
         response.stream_to_file(tmp_file.name)
         return tmp_file.name
 
 # ==========================================
-# 3. BAŞLATMA
+# 4. APP LOGIC
 # ==========================================
 
-# CSS Yükle (Hesaplanmış yol ile)
-load_local_css(css_path)
+# CSS'i yükle
+load_css(css_path)
 
-# Oturum Durumlarını Başlat
+# Session State Başlatma
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "chat_session" not in st.session_state:
     st.session_state.chat_session = model.start_chat(history=[])
 
-# ==========================================
-# 4. YAN MENÜ (SIDEBAR)
-# ==========================================
-
+# --- SIDEBAR ---
 with st.sidebar:
-    st.markdown("## ⚙️ Settings")
-    
+    st.header("⚙️ Settings")
     if st.button("🗑️ Clear Conversation", use_container_width=True):
         st.session_state.messages = []
         st.session_state.chat_session = model.start_chat(history=[])
         st.rerun()
         
     st.markdown("---")
-    st.markdown("### 📘 How to use")
-    st.info(
-        """
-        1. **Tap the microphone** below.
-        2. **Speak in English** clearly.
-        3. **Listen** to Fluent's response.
-        4. Repeat to improve!
-        """
-    )
-    st.markdown("---")
-    st.caption("Powered by Gemini 1.5 & OpenAI")
+    st.info("Tap the microphone below to start speaking.")
 
-# ==========================================
-# 5. ANA SOHBET EKRANI
-# ==========================================
+# --- MAIN CHAT UI ---
+st.title("AI Fluent Partner")
 
-st.markdown("<h1>AI Fluent Partner</h1>", unsafe_allow_html=True)
-st.markdown("*Practice English naturally with your personalized AI tutor.*")
-
-st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-
-# Sohbet Geçmişini Göster
+# Mesaj Geçmişini Göster
 chat_container = st.container()
-
 with chat_container:
     if not st.session_state.messages:
-        # Boş durum mesajı
-        st.markdown(
-            """
-            <div style='text-align: center; padding: 50px; opacity: 0.6;'>
-                <h3>👋 Welcome!</h3>
-                <p>Start speaking to begin your practice session.</p>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
+        st.markdown("<div style='text-align: center; color: #666;'>👋 Start speaking to begin!</div>", unsafe_allow_html=True)
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -164,51 +137,34 @@ with chat_container:
             if "audio" in message:
                 st.audio(message["audio"], format="audio/mp3")
 
-# ==========================================
-# 6. GİRİŞ ALANI (EN ALTTA SABİT)
-# ==========================================
-
+# --- AUDIO INPUT (BOTTOM) ---
 st.markdown("---")
-
-# Ses Girişi (Audio Input)
 audio_value = st.audio_input("🎤 Tap to speak")
 
 if audio_value:
-    # 1. Kullanıcı Girişini İşle
+    # 1. User Logic
     with st.chat_message("user"):
-        with st.spinner("Processing speech..."):
-            # Sesi kaydet
+        with st.spinner("Processing..."):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_audio:
                 tmp_audio.write(audio_value.read())
                 tmp_audio_path = tmp_audio.name
             
-            # Yazıya çevir
             user_text = speech_to_text(tmp_audio_path)
             st.markdown(user_text)
-            
-    # Listeye ekle
-    st.session_state.messages.append({"role": "user", "content": user_text})
+            st.session_state.messages.append({"role": "user", "content": user_text})
+            os.remove(tmp_audio_path) # Clean up input file
 
-    # 2. AI Cevabını İşle
+    # 2. AI Logic
     with st.chat_message("assistant"):
-        with st.spinner("Fluent is thinking..."):
-            # Gemini'ye sor
+        with st.spinner("Thinking..."):
             ai_response_text = ask_gemini(st.session_state.chat_session, user_text)
-            
-            # Sese çevir
             ai_audio_path = text_to_speech(ai_response_text)
             
-            # Ekrana bas ve sesi çal
             st.markdown(ai_response_text)
             st.audio(ai_audio_path, format="audio/mp3", autoplay=True)
-    
-    # Listeye ekle
-    st.session_state.messages.append({
-        "role": "assistant", 
-        "content": ai_response_text, 
-        "audio": ai_audio_path
-    })
-
-    # Temizlik
-    if os.path.exists(tmp_audio_path):
-        os.remove(tmp_audio_path)
+            
+            st.session_state.messages.append({
+                "role": "assistant", 
+                "content": ai_response_text, 
+                "audio": ai_audio_path
+            })
